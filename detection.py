@@ -8,7 +8,7 @@
 
 # class DebrisAnalyzer:
 #     def __init__(self, threshed_directory, csv_file_path):
-        
+
 #         self.threshed_directory = threshed_directory
 #         self.csv_file_path = csv_file_path
 
@@ -111,14 +111,15 @@
 #     analyzer.process_images()
 
 
-
 import os
 import cv2
 import numpy as np
 import csv
 from skimage import feature
-from conversion import convert_fits_to_image  # Ensure these modules are available
+# Ensure these modules are available
+from conversion import convert_fits_to_image
 from threshold import iterative_thresholding
+
 
 class DebrisAnalyzer:
     def __init__(self, threshed_directory, output_directory, csv_file_path):
@@ -154,24 +155,30 @@ class DebrisAnalyzer:
             csvwriter = csv.writer(csvfile)
 
             # Write the header row
-            csvwriter.writerow(['Image', 'Object ID', 'Area', 'Edges', 'Center_x', 'Center_y', 'Width', 'Height', 'lbp_mean', 'lbp_std', 'Prediction'])
+            csvwriter.writerow(['Image', 'Object ID', 'Area', 'Edges', 'Center_x',
+                               'Center_y', 'Width', 'Height', 'lbp_mean', 'lbp_std', 'Prediction'])
 
             for fits_filename in fitsfiles:
                 # Full path to the FITS file
-                full_path_fits = os.path.join(self.threshed_directory, fits_filename)
+                full_path_fits = os.path.join(
+                    self.threshed_directory, fits_filename)
 
                 # Output PNG filename (assuming the same name with a different extension)
-                output_image_filename = os.path.join(self.threshed_directory, os.path.splitext(fits_filename)[0] + '.png')
-                convert_fits_to_image(self.threshed_directory, self.threshed_directory)
+                output_image_filename = os.path.join(
+                    self.threshed_directory, os.path.splitext(fits_filename)[0] + '.png')
+                convert_fits_to_image(
+                    self.threshed_directory, self.threshed_directory)
 
                 image = cv2.imread(output_image_filename)
                 img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
                 # Apply the iterative thresholding algorithm to the image
-                thresholded_img, optimal_threshold = iterative_thresholding(img)
+                thresholded_img, optimal_threshold = iterative_thresholding(
+                    img)
 
                 # Threshold the image using the optimal threshold
-                thresholded_img = (img >= optimal_threshold).astype(np.uint8) * 255
+                thresholded_img = (
+                    img >= optimal_threshold).astype(np.uint8) * 255
 
                 num_labels_iterative, labels_iterative, stats_iterative, centroids_iterative = cv2.connectedComponentsWithStats(
                     img, connectivity=8)
@@ -181,11 +188,13 @@ class DebrisAnalyzer:
 
                 for label in range(1, num_labels_iterative):
                     area_iterative = stats_iterative[label, cv2.CC_STAT_AREA]
-                    component_mask = (labels_iterative == label).astype(np.uint8)
+                    component_mask = (labels_iterative ==
+                                      label).astype(np.uint8)
                     center_x, center_y = centroids_iterative[label]
                     # Multiply the component mask with the edges to get edges within the component
                     edges = cv2.Canny(img, 30, 100)
-                    edges_in_component = cv2.bitwise_and(edges, edges, mask=component_mask)
+                    edges_in_component = cv2.bitwise_and(
+                        edges, edges, mask=component_mask)
 
                     # Get the coordinates of the bounding box for the current object
                     x, y, w, h, area = stats_iterative[label]
@@ -194,10 +203,12 @@ class DebrisAnalyzer:
                     edge_count = np.count_nonzero(edges_in_component)
 
                     # Extract the region of interest (ROI)
-                    roi = img[y:min(y+h, img.shape[0]), x:min(x+w, img.shape[1])]
+                    roi = img[y:min(y+h, img.shape[0]),
+                              x:min(x+w, img.shape[1])]
 
                     # Compute Local Binary Pattern (LBP) features
-                    lbp_features = feature.local_binary_pattern(roi, P=8, R=1, method='uniform')
+                    lbp_features = feature.local_binary_pattern(
+                        roi, P=8, R=1, method='uniform')
                     lbp_mean = np.mean(lbp_features)
                     lbp_std = np.std(lbp_features)
 
@@ -208,29 +219,38 @@ class DebrisAnalyzer:
                     # Print the coordinates of the bounding box
                     print(f"Object {object_id} in {fits_filename}:")
 
-                    cv2.putText(image, str(object_id), (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    cv2.putText(image, str(object_id), (x, y - 5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-                    Ixx, Iyy, Ixy = self.moment_of_inertia(xWidth, yHeight, center_x, center_y)
-                    prediction = self.main_inertia(Ixx, Iyy, Ixy, yHeight, xWidth)
+                    Ixx, Iyy, Ixy = self.moment_of_inertia(
+                        xWidth, yHeight, center_x, center_y)
+                    prediction = self.main_inertia(
+                        Ixx, Iyy, Ixy, yHeight, xWidth)
 
                     # Highlight celestial objects in the output image
                     if prediction == 'Celestial Object':
-                        cv2.rectangle(image, (x, y), (x + w, y + h), (255, 0, 0), 2)  # Blue bounding box for celestial objects
+                        # Blue bounding box for celestial objects
+                        cv2.rectangle(
+                            image, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
                     # Write the row to the CSV file
-                    csvwriter.writerow([fits_filename, object_id, area_iterative, edge_count, center_x, center_y, w, h, lbp_mean, lbp_std, prediction])
+                    csvwriter.writerow([fits_filename, object_id, area_iterative, edge_count,
+                                       center_x, center_y, w, h, lbp_mean, lbp_std, prediction])
 
                     # Increment Id
                     object_id += 1
 
                 # Save the output image with highlighted celestial objects in the output directory
-                highlighted = os.path.join(self.output_directory, os.path.splitext(fits_filename)[0] + '_highlighted.png')
+                highlighted = os.path.join(self.output_directory, os.path.splitext(
+                    fits_filename)[0] + '_highlighted.png')
                 cv2.imwrite(highlighted, image)
+
 
 # Example usage
 if __name__ == "__main__":
     # Instantiate DebrisAnalyzer
-    analyzer = DebrisAnalyzer(threshed_directory=r"c:\Users\Aziz\Desktop\julia\Space-Debris-Project-1\OOP\Detection\images_Preprocessing\iter_images", output_directory=r"E:\finalGPbegad\Highlighted", csv_file_path=r"E:\finalGPbegad\sim_debris.csv")
+    analyzer = DebrisAnalyzer(threshed_directory=r"c:\Users\Eman Nabil\Desktop\Space-Debris-Project\OOP\Detection\images_Preprocessing\iter_images",
+                              output_directory=r"C:\Users\Eman Nabil\Desktop\finalGPbegad-1\Highlighted", csv_file_path=r"C:\Users\Eman Nabil\Desktop\finalGPbegad-1\sim_debris.csv")
     # Debugging: Print out the path
     print("Threshed directory:", analyzer.threshed_directory)
     # Process images

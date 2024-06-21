@@ -2,6 +2,7 @@ import cv2
 import os
 import numpy as np
 
+
 def iterative_thresholding_folder(input_folder, output_folder, sub_image_size=(64, 64)):
     """
     Apply iterative thresholding to images in the input folder and save the thresholded images in the output folder.
@@ -28,6 +29,7 @@ def iterative_thresholding_folder(input_folder, output_folder, sub_image_size=(6
         cv2.imwrite(output_path, thresholded_img)
 
         print(f"Thresholded image saved: {output_path}")
+
 
 def apply_thresholding_to_sub_images(img, sub_image_size):
     """
@@ -57,6 +59,7 @@ def apply_thresholding_to_sub_images(img, sub_image_size):
 
     return thresholded_img
 
+
 def iterative_thresholding(img):
     """
     Apply iterative thresholding to the input image and return the thresholded image along with the guessed threshold.
@@ -67,7 +70,8 @@ def iterative_thresholding(img):
     # Loop until convergence
     while True:
         # Threshold the image using the current threshold
-        _, thresholded_img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
+        _, thresholded_img = cv2.threshold(
+            img, threshold, 255, cv2.THRESH_BINARY)
 
         # Calculate the mean pixel values for foreground and background
         foreground_pixels = img[thresholded_img == 255]
@@ -77,8 +81,10 @@ def iterative_thresholding(img):
         if foreground_pixels.size == 0 or background_pixels.size == 0:
             break
 
-        foreground_mean = np.mean(foreground_pixels) if foreground_pixels.size > 0 else 0
-        background_mean = np.mean(background_pixels) if background_pixels.size > 0 else 0
+        foreground_mean = np.mean(
+            foreground_pixels) if foreground_pixels.size > 0 else 0
+        background_mean = np.mean(
+            background_pixels) if background_pixels.size > 0 else 0
 
         # Update the threshold using the means of foreground and background
         new_threshold = (foreground_mean + background_mean) / 2
@@ -90,11 +96,13 @@ def iterative_thresholding(img):
         # Update the threshold
         threshold = new_threshold
 
-    return threshold
-    # return thresholded_img, threshold
+    return thresholded_img, threshold
+
 
 # Example usage
 if __name__ == "__main__":
-    input_folder = r'C:\Users\USER\Desktop\finalGPbegad\images'  # Specify the path to your input folder
-    output_folder = r'C:\Users\USER\Desktop\finalGPbegad\threshold'  # Specify the path to your output folder
+    # Specify the path to your input folder
+    input_folder = r'C:\Users\USER\Desktop\finalGPbegad\images'
+    # Specify the path to your output folder
+    output_folder = r'C:\Users\USER\Desktop\finalGPbegad\threshold'
     iterative_thresholding_folder(input_folder, output_folder)
